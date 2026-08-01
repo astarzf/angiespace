@@ -63,9 +63,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 .kpi-card {
   background: var(--card-bg); border-radius: 12px; padding: 16px;
   text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
 }
-.kpi-card:active { transform: scale(0.95); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
 .kpi-card .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
 .kpi-card .value { font-size: 28px; font-weight: 700; }
 .kpi-card.danger .value { color: var(--danger); }
@@ -89,6 +87,29 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 /* Filter chips */
 .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 12px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .filter-bar::-webkit-scrollbar { display: none; }
+
+/* Subtabs */
+.subtabs {
+  display: flex; background: var(--card-bg);
+  border-bottom: 1px solid var(--border); margin: -12px -12px 12px;
+  position: sticky; top: 0; z-index: 98;
+}
+.subtab {
+  flex: 1; padding: 12px 8px; text-align: center;
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;
+}
+.subtab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* Group headers in list */
+.group-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 4px 8px; font-size: 14px; font-weight: 700; color: var(--primary);
+}
+.group-header .group-count {
+  font-size: 12px; font-weight: 400; color: var(--text-secondary);
+  background: #F3F4F6; padding: 2px 8px; border-radius: 10px;
+}
 .chip {
   padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
   background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary);
@@ -254,7 +275,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
   <div class="kpi-grid" id="kpiGrid"></div>
   <div class="stats-section" id="areaStats"></div>
   <div class="stats-section" id="priorityStats"></div>
-  <div class="stats-section" id="statusStats"></div>
   <div class="stats-section" id="statusLegend">
     <h3>状态说明</h3>
     <div class="stats-row"><span class="badge need-fix">需修改</span><span style="margin-left:auto">设计师需修改的方案</span></div>
@@ -266,8 +286,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 
 <!-- Page: List -->
 <div class="page" id="page-list">
-  <div class="filter-bar" id="filterBar"></div>
-  <div id="reqList"></div>
+  <div class="subtabs" id="listSubtabs">
+    <div class="subtab active" data-subview="area" onclick="switchSubView('area')">按空间</div>
+    <div class="subtab" data-subview="status" onclick="switchSubView('status')">按状态</div>
+    <div class="subtab" data-subview="priority" onclick="switchSubView('priority')">按优先级</div>
+  </div>
+  <div id="reqListArea"></div>
+  <div id="reqListStatus" style="display:none;"></div>
+  <div id="reqListPriority" style="display:none;"></div>
 </div>
 
 <!-- Page: Log -->
@@ -356,7 +382,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 <script>
 // ========== BASE DATA (managed by AI updates) ==========
 const BASE_DATA = {
-  version: "2026-08-02-v3",
+  version: "2026-08-02-v4",
   lastUpdate: "2026-08-01",
   requirements: [
     {"id":1,"area":"客厅卫生间","category":"隔断设计","desc":"马桶与淋浴间不做隔断，延续之前讨论的方案","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"与刘工前期沟通确认"},
@@ -476,11 +502,11 @@ function renderDashboard() {
 
   // KPI
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi-card" onclick="filterByStatus('all')"><div class="label">需求总数</div><div class="value" style="color:var(--primary)">${total}</div></div>
-    <div class="kpi-card danger" onclick="filterByStatus('需修改')"><div class="label">需修改</div><div class="value">${needFix}</div></div>
-    <div class="kpi-card warning" onclick="filterByStatus('待确认/评估')"><div class="label">待确认/评估</div><div class="value">${pendingConfirm}</div></div>
-    <div class="kpi-card warning" onclick="filterByStatus('待出图/设计')"><div class="label">待出图/设计</div><div class="value">${pendingOutput}</div></div>
-    <div class="kpi-card success" onclick="filterByStatus('已确认/完成')"><div class="label">已确认/完成</div><div class="value">${done}</div></div>
+    <div class="kpi-card"><div class="label">需求总数</div><div class="value" style="color:var(--primary)">${total}</div></div>
+    <div class="kpi-card danger"><div class="label">需修改</div><div class="value">${needFix}</div></div>
+    <div class="kpi-card warning"><div class="label">待确认/评估</div><div class="value">${pendingConfirm}</div></div>
+    <div class="kpi-card warning"><div class="label">待出图/设计</div><div class="value">${pendingOutput}</div></div>
+    <div class="kpi-card success"><div class="label">已确认/完成</div><div class="value">${done}</div></div>
     <div class="kpi-card"><div class="label">更新日期</div><div class="value" style="font-size:16px;color:var(--text-secondary)">${data.lastUpdate}</div></div>
   `;
 
@@ -531,113 +557,22 @@ function renderDashboard() {
     }
   });
   document.getElementById('priorityStats').innerHTML = prioHTML;
-
-  // By Status (with progress bars)
-  const statusGroups = [
-    { name: '需修改', color: 'var(--danger)', badgeClass: 'need-fix' },
-    { name: '待确认', color: 'var(--warning)', badgeClass: 'pending-confirm' },
-    { name: '待评估', color: 'var(--warning)', badgeClass: 'pending-confirm' },
-    { name: '待出图', color: 'var(--info)', badgeClass: 'pending-output' },
-    { name: '待设计', color: 'var(--info)', badgeClass: 'pending-output' },
-    { name: '待提供', color: 'var(--info)', badgeClass: 'pending-output' },
-    { name: '已确认', color: 'var(--success)', badgeClass: 'done' },
-    { name: '已完成', color: 'var(--success)', badgeClass: 'done' },
-    { name: '已搁置', color: '#9CA3AF', badgeClass: 'pending-confirm' },
-  ];
-  let statusHTML = '<h3>按状态统计</h3>';
-  statusGroups.forEach(sg => {
-    const sReqs = reqs.filter(r => r.status === sg.name);
-    if (sReqs.length > 0) {
-      const pct = (sReqs.length / total * 100).toFixed(0);
-      statusHTML += `
-      <div class="stats-row">
-        <span class="badge ${sg.badgeClass}" style="min-width:56px;text-align:center">${sg.name}</span>
-        <div class="stats-bar"><div style="width:${pct}%;background:${sg.color}"></div></div>
-        <span style="min-width:24px;text-align:right">${sReqs.length}</span>
-      </div>`;
-    }
-  });
-  document.getElementById('statusStats').innerHTML = statusHTML;
 }
 
 // ========== RENDER LIST ==========
-let currentFilter = 'all';
-function renderFilterBar() {
-  const data = getData();
-  const areas = [...new Set(data.requirements.map(r => r.area))].sort();
-  const filters = ['all', 'pending', ...areas];
-  const labels = { 'all': '全部', 'pending': '待处理' };
-  
-  // Add status filter chip if active
-  let statusChip = '';
-  if (currentFilter.startsWith('status:')) {
-    const statusKey = currentFilter.split(':')[1];
-    statusChip = `<div class="chip active">${statusKey}（点击全部清除）</div>`;
-  }
-  
-  document.getElementById('filterBar').innerHTML = statusChip + filters.map(f => 
-    `<div class="chip ${currentFilter === f ? 'active' : ''}" onclick="setFilter('${f}')">${labels[f] || f}</div>`
-  ).join('');
+let currentSubView = 'area';
+
+function switchSubView(view) {
+  currentSubView = view;
+  document.querySelectorAll('.subtab').forEach(s => s.classList.remove('active'));
+  document.querySelector(`.subtab[data-subview="${view}"]`).classList.add('active');
+  document.getElementById('reqListArea').style.display = view === 'area' ? 'block' : 'none';
+  document.getElementById('reqListStatus').style.display = view === 'status' ? 'block' : 'none';
+  document.getElementById('reqListPriority').style.display = view === 'priority' ? 'block' : 'none';
 }
 
-function setFilter(f) {
-  currentFilter = f;
-  renderFilterBar();
-  renderList();
-}
-
-function filterByStatus(statusKey) {
-  // Switch to list page
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelector('.tab[data-page="list"]').classList.add('active');
-  document.getElementById('page-list').classList.add('active');
-  
-  // Set filter to the status group
-  currentFilter = 'status:' + statusKey;
-  renderFilterBar();
-  renderList();
-}
-
-function renderList() {
-  const data = getData();
-  let reqs = data.requirements;
-  
-  // Status group filter (from KPI click)
-  if (currentFilter.startsWith('status:')) {
-    const statusKey = currentFilter.split(':')[1];
-    if (statusKey === 'all') {
-      // no filter
-    } else if (statusKey === '需修改') {
-      reqs = reqs.filter(r => r.status === '需修改');
-    } else if (statusKey === '待确认/评估') {
-      reqs = reqs.filter(r => ['待确认','待评估'].includes(r.status));
-    } else if (statusKey === '待出图/设计') {
-      reqs = reqs.filter(r => ['待出图','待设计','待提供'].includes(r.status));
-    } else if (statusKey === '已确认/完成') {
-      reqs = reqs.filter(r => ['已确认','已完成'].includes(r.status));
-    }
-  } else if (currentFilter === 'pending') {
-    reqs = reqs.filter(r => isPending(r.status));
-  } else if (currentFilter !== 'all') {
-    reqs = reqs.filter(r => r.area === currentFilter);
-  }
-  
-  if (reqs.length === 0) {
-    document.getElementById('reqList').innerHTML = '<div class="empty-state">暂无需求</div>';
-    return;
-  }
-  
-  // Sort: pending first, then by priority
-  const prioOrder = { '高': 0, '中': 1, '低': 2 };
-  reqs.sort((a, b) => {
-    const aPending = isPending(a.status) ? 0 : 1;
-    const bPending = isPending(b.status) ? 0 : 1;
-    if (aPending !== bPending) return aPending - bPending;
-    return prioOrder[a.priority] - prioOrder[b.priority];
-  });
-  
-  document.getElementById('reqList').innerHTML = reqs.map(r => `
+function reqCardHTML(r) {
+  return `
     <div class="req-card" data-status="${r.status}">
       <div class="req-header">
         <div class="req-title">
@@ -655,8 +590,63 @@ function renderList() {
       </div>
       ${r.feedback ? `<div style="margin-top:8px;font-size:13px;color:var(--text-secondary);padding-top:8px;border-top:1px dashed var(--border)"><strong>反馈：</strong>${r.feedback}</div>` : ''}
       ${r.note ? `<div style="margin-top:4px;font-size:12px;color:var(--text-secondary)"><strong>备注：</strong>${r.note}</div>` : ''}
-    </div>
-  `).join('');
+    </div>`;
+}
+
+function renderList() {
+  const data = getData();
+  const reqs = data.requirements;
+  const prioOrder = { '高': 0, '中': 1, '低': 2 };
+  const sortFn = (a, b) => {
+    const aP = isPending(a.status) ? 0 : 1;
+    const bP = isPending(b.status) ? 0 : 1;
+    if (aP !== bP) return aP - bP;
+    return prioOrder[a.priority] - prioOrder[b.priority];
+  };
+
+  // --- By Area ---
+  const areas = [...new Set(reqs.map(r => r.area))].sort();
+  let areaHTML = '';
+  areas.forEach(area => {
+    const areaReqs = reqs.filter(r => r.area === area).sort(sortFn);
+    areaHTML += `<div class="group-header">${area}<span class="group-count">${areaReqs.length}项</span></div>`;
+    areaHTML += areaReqs.map(reqCardHTML).join('');
+  });
+  document.getElementById('reqListArea').innerHTML = areaHTML;
+
+  // --- By Status ---
+  const statusGroups = [
+    { name: '需修改', badgeClass: 'need-fix' },
+    { name: '待确认', badgeClass: 'pending-confirm' },
+    { name: '待评估', badgeClass: 'pending-confirm' },
+    { name: '待出图', badgeClass: 'pending-output' },
+    { name: '待设计', badgeClass: 'pending-output' },
+    { name: '待提供', badgeClass: 'pending-output' },
+    { name: '已确认', badgeClass: 'done' },
+    { name: '已完成', badgeClass: 'done' },
+    { name: '已搁置', badgeClass: 'pending-confirm' },
+  ];
+  let statusHTML = '';
+  statusGroups.forEach(sg => {
+    const sReqs = reqs.filter(r => r.status === sg.name).sort(sortFn);
+    if (sReqs.length > 0) {
+      statusHTML += `<div class="group-header"><span class="badge ${sg.badgeClass}">${sg.name}</span><span class="group-count">${sReqs.length}项</span></div>`;
+      statusHTML += sReqs.map(reqCardHTML).join('');
+    }
+  });
+  document.getElementById('reqListStatus').innerHTML = statusHTML;
+
+  // --- By Priority ---
+  const priorities = ['高','中','低'];
+  let prioHTML = '';
+  priorities.forEach(p => {
+    const pReqs = reqs.filter(r => r.priority === p).sort(sortFn);
+    if (pReqs.length > 0) {
+      prioHTML += `<div class="group-header"><span class="badge ${priorityBadgeClass(p)}">${p}优先级</span><span class="group-count">${pReqs.length}项</span></div>`;
+      prioHTML += pReqs.map(reqCardHTML).join('');
+    }
+  });
+  document.getElementById('reqListPriority').innerHTML = prioHTML;
 }
 
 // ========== RENDER LOG ==========
@@ -855,7 +845,6 @@ function showToast(msg) {
 // ========== RENDER ALL ==========
 function renderAll() {
   renderDashboard();
-  renderFilterBar();
   renderList();
   renderLog();
 }
