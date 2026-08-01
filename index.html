@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="装修追踪">
+<title>美加广场 E203 · 装修需求追踪</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root {
+  --primary: #2C3E5A;
+  --primary-light: #3D5278;
+  --bg: #F0F2F5;
+  --card-bg: #FFFFFF;
+  --text: #1F2937;
+  --text-secondary: #6B7280;
+  --border: #E5E7EB;
+  --success: #10B981;
+  --success-bg: #D1FAE5;
+  --warning: #F59E0B;
+  --warning-bg: #FEF3C7;
+  --danger: #EF4444;
+  --danger-bg: #FEE2E2;
+  --info: #3B82F6;
+  --info-bg: #DBEAFE;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); padding-bottom: calc(80px + var(--safe-bottom)); -webkit-font-smoothing: antialiased; }
+
+.app-header {
+  background: var(--primary);
+  color: #fff;
+  padding: calc(12px + var(--safe-top)) 16px 16px;
+  position: sticky; top: 0; z-index: 100;
+}
+.app-header h1 { font-size: 18px; font-weight: 700; }
+.app-header .subtitle { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+.tabs {
+  display: flex; background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 99;
+  padding-top: var(--safe-top);
+}
+.tab {
+  flex: 1; padding: 14px 8px; text-align: center;
+  font-size: 14px; font-weight: 600; color: var(--text-secondary);
+  border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;
+}
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.page { display: none; padding: 12px; }
+.page.active { display: block; }
+
+/* KPI Cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+.kpi-card {
+  background: var(--card-bg); border-radius: 12px; padding: 16px;
+  text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.kpi-card .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.kpi-card .value { font-size: 28px; font-weight: 700; }
+.kpi-card.danger .value { color: var(--danger); }
+.kpi-card.warning .value { color: var(--warning); }
+.kpi-card.success .value { color: var(--success); }
+
+/* Stats sections */
+.stats-section {
+  background: var(--card-bg); border-radius: 12px; padding: 14px;
+  margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.stats-section h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--primary); }
+.stats-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.stats-row:last-child { border-bottom: none; font-weight: 700; color: var(--primary); }
+.stats-bar { display: flex; gap: 2px; flex: 1; margin-left: 12px; height: 8px; border-radius: 4px; overflow: hidden; background: #f0f0f0; }
+.stats-bar > div { height: 100%; }
+
+/* Filter chips */
+.filter-bar { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 12px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.filter-bar::-webkit-scrollbar { display: none; }
+.chip {
+  padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary);
+  white-space: nowrap; cursor: pointer; transition: all 0.2s;
+}
+.chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* Requirement card */
+.req-card {
+  background: var(--card-bg); border-radius: 12px; padding: 14px;
+  margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-left: 4px solid var(--border); transition: border-color 0.2s;
+}
+.req-card[data-status="需修改"] { border-left-color: var(--danger); }
+.req-card[data-status="待确认"], .req-card[data-status="待评估"] { border-left-color: var(--warning); }
+.req-card[data-status="待出图"], .req-card[data-status="待设计"], .req-card[data-status="待提供"] { border-left-color: var(--info); }
+.req-card[data-status="已确认"], .req-card[data-status="已完成"] { border-left-color: var(--success); }
+
+.req-card .req-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.req-card .req-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.req-card .req-id { font-size: 12px; font-weight: 700; color: var(--text-secondary); background: #F3F4F6; padding: 2px 8px; border-radius: 10px; }
+.req-card .req-area { font-size: 13px; font-weight: 600; color: var(--primary); }
+.req-card .req-desc { font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
+
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 12px; font-weight: 600;
+}
+.badge.need-fix { background: var(--danger-bg); color: var(--danger); }
+.badge.pending-confirm { background: var(--warning-bg); color: #92400E; }
+.badge.pending-output { background: var(--info-bg); color: #1E40AF; }
+.badge.done { background: var(--success-bg); color: #065F46; }
+.badge.priority-high { background: var(--danger-bg); color: var(--danger); }
+.badge.priority-mid { background: var(--warning-bg); color: #92400E; }
+.badge.priority-low { background: #E5E7EB; color: #4B5563; }
+
+.req-footer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.req-footer .spacer { flex: 1; }
+
+.edit-btn {
+  background: #F3F4F6; border: none; border-radius: 8px; padding: 6px 12px;
+  font-size: 12px; color: var(--primary); font-weight: 600; cursor: pointer;
+}
+.edit-btn:active { background: #E5E7EB; }
+
+/* Edit panel */
+.edit-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: 200; display: none; align-items: flex-end;
+}
+.edit-overlay.show { display: flex; }
+.edit-panel {
+  background: #fff; border-radius: 20px 20px 0 0;
+  padding: 20px 16px calc(20px + var(--safe-bottom));
+  width: 100%; max-height: 80vh; overflow-y: auto;
+}
+.edit-panel h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--primary); }
+.edit-group { margin-bottom: 16px; }
+.edit-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.edit-group select, .edit-group textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 15px; font-family: inherit; background: #F9FAFB;
+}
+.edit-group textarea { min-height: 80px; resize: vertical; }
+.edit-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btn-save {
+  flex: 1; background: var(--primary); color: #fff; border: none;
+  border-radius: 10px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.btn-cancel {
+  flex: 1; background: #F3F4F6; color: var(--text); border: none;
+  border-radius: 10px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+
+/* Urging panel */
+.urge-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 200; display: none; align-items: flex-end;
+}
+.urge-overlay.show { display: flex; }
+.urge-panel {
+  background: #fff; border-radius: 20px 20px 0 0;
+  padding: 20px 16px calc(24px + var(--safe-bottom));
+  width: 100%; max-height: 85vh; overflow-y: auto;
+}
+.urge-panel h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: var(--primary); }
+.urge-panel .urge-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+.urge-list { margin-bottom: 16px; }
+.urge-item {
+  display: flex; align-items: flex-start; gap: 8px; padding: 10px 0;
+  border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.urge-item input[type="checkbox"] { margin-top: 3px; width: 18px; height: 18px; }
+.urge-item .item-text { flex: 1; line-height: 1.4; }
+.urge-item .item-id { font-weight: 700; color: var(--text-secondary); margin-right: 4px; }
+
+.urge-text-box {
+  background: #F9FAFB; border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;
+  margin-bottom: 16px; max-height: 300px; overflow-y: auto;
+}
+.btn-copy {
+  width: 100%; background: var(--success); color: #fff; border: none;
+  border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.btn-close-urge {
+  width: 100%; background: #F3F4F6; color: var(--text); border: none;
+  border-radius: 10px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px;
+}
+
+/* FAB */
+.fab {
+  position: fixed; bottom: calc(20px + var(--safe-bottom)); right: 20px;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--danger); color: #fff; border: none;
+  font-size: 24px; box-shadow: 0 4px 12px rgba(239,68,68,0.4);
+  cursor: pointer; z-index: 90; display: flex; align-items: center; justify-content: center;
+}
+.fab:active { transform: scale(0.9); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.8); color: #fff; padding: 10px 24px;
+  border-radius: 20px; font-size: 14px; z-index: 300;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* Log entries */
+.log-entry {
+  background: var(--card-bg); border-radius: 12px; padding: 14px;
+  margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.log-entry .log-date { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+.log-entry .log-content { font-size: 14px; line-height: 1.5; color: var(--text); }
+.log-entry .log-reply { font-size: 13px; color: var(--text-secondary); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>美加广场 E203 · 装修追踪</h1>
+  <div class="subtitle">设计师：刘工 &nbsp;|&nbsp; 更新：2026-08-01</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-page="dashboard">看板</div>
+  <div class="tab" data-page="list">需求</div>
+  <div class="tab" data-page="log">记录</div>
+</div>
+
+<!-- Page: Dashboard -->
+<div class="page active" id="page-dashboard">
+  <div class="kpi-grid" id="kpiGrid"></div>
+  <div class="stats-section" id="areaStats"></div>
+  <div class="stats-section" id="priorityStats"></div>
+  <div class="stats-section" id="statusLegend">
+    <h3>状态说明</h3>
+    <div class="stats-row"><span class="badge need-fix">需修改</span><span style="margin-left:auto">设计师需修改的方案</span></div>
+    <div class="stats-row"><span class="badge pending-confirm">待确认/评估</span><span style="margin-left:auto">需设计师专业判断</span></div>
+    <div class="stats-row"><span class="badge pending-output">待出图/设计</span><span style="margin-left:auto">需设计师出图或提供资料</span></div>
+    <div class="stats-row"><span class="badge done">已确认/完成</span><span style="margin-left:auto">已确定无需再改</span></div>
+  </div>
+</div>
+
+<!-- Page: List -->
+<div class="page" id="page-list">
+  <div class="filter-bar" id="filterBar"></div>
+  <div id="reqList"></div>
+</div>
+
+<!-- Page: Log -->
+<div class="page" id="page-log">
+  <div id="logList"></div>
+</div>
+
+<!-- Edit Panel -->
+<div class="edit-overlay" id="editOverlay">
+  <div class="edit-panel">
+    <h3>编辑需求</h3>
+    <input type="hidden" id="editId">
+    <div class="edit-group">
+      <label>当前状态</label>
+      <select id="editStatus">
+        <option value="需修改">需修改</option>
+        <option value="待确认">待确认</option>
+        <option value="待评估">待评估</option>
+        <option value="待出图">待出图</option>
+        <option value="待设计">待设计</option>
+        <option value="待提供">待提供</option>
+        <option value="已确认">已确认</option>
+        <option value="已完成">已完成</option>
+        <option value="已搁置">已搁置</option>
+      </select>
+    </div>
+    <div class="edit-group">
+      <label>优先级</label>
+      <select id="editPriority">
+        <option value="高">高</option>
+        <option value="中">中</option>
+        <option value="低">低</option>
+      </select>
+    </div>
+    <div class="edit-group">
+      <label>设计师反馈</label>
+      <textarea id="editFeedback" placeholder="记录设计师的回复..."></textarea>
+    </div>
+    <div class="edit-group">
+      <label>备注</label>
+      <textarea id="editNote" placeholder="补充说明..."></textarea>
+    </div>
+    <div class="edit-actions">
+      <button class="btn-cancel" onclick="closeEdit()">取消</button>
+      <button class="btn-save" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Urge Panel -->
+<div class="urge-overlay" id="urgeOverlay">
+  <div class="urge-panel">
+    <h3>催办设计师</h3>
+    <div class="urge-sub">勾选需要催办的需求，一键生成催办文案</div>
+    <div class="urge-list" id="urgeList"></div>
+    <div class="urge-text-box" id="urgeText" style="display:none;"></div>
+    <button class="btn-copy" id="btnGenerate" onclick="generateUrgeText()">生成催办文案</button>
+    <button class="btn-copy" id="btnCopy" style="display:none; background: var(--primary);" onclick="copyUrgeText()">复制到剪贴板</button>
+    <button class="btn-close-urge" onclick="closeUrge()">关闭</button>
+  </div>
+</div>
+
+<button class="fab" onclick="openUrge()">✊</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== BASE DATA (managed by AI updates) ==========
+const BASE_DATA = {
+  version: "2026-08-01",
+  lastUpdate: "2026-08-01",
+  requirements: [
+    {"id":1,"area":"客厅卫生间","category":"隔断设计","desc":"马桶与淋浴间不做隔断，延续之前讨论的方案","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"与刘工前期沟通确认"},
+    {"id":2,"area":"客厅卫生间","category":"门体改造","desc":"客厅餐厅进入洗手间洗衣房的门做双开门，从外面看要美观","date":"2026-07","priority":"高","status":"需修改","feedback":"","note":"设计师需出双开门方案"},
+    {"id":3,"area":"客厅卫生间","category":"隔断设计","desc":"马桶前方区域封起来，封墙还是封隔断待刘工评估","date":"2026-07","priority":"中","status":"待确认","feedback":"","note":"需刘工现场评估决定方案"},
+    {"id":4,"area":"客厅卫生间","category":"门体改造","desc":"淋浴间门开在淋浴间那一侧","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":""},
+    {"id":5,"area":"客厅卫生间","category":"门体改造","desc":"淋浴间门不做玻璃门（透明不方便，不透明款式不美观）","date":"2026-07","priority":"高","status":"已确认","feedback":"","note":"已明确排除玻璃门方案"},
+    {"id":6,"area":"客厅卫生间","category":"门体改造","desc":"考虑做百叶门替代玻璃门，用于干湿分离","date":"2026-07","priority":"高","status":"待评估","feedback":"","note":"需刘工评估百叶门可行性"},
+    {"id":7,"area":"客厅卫生间","category":"地面设计","desc":"淋浴区做下沉设计，配合百叶门关门时卡到下沉位置起隔水效果","date":"2026-07","priority":"高","status":"待评估","feedback":"","note":"与百叶门方案联动，需整体评估"},
+    {"id":8,"area":"客厅卫生间","category":"风格设计","desc":"整体自然风格，营造户外自然风的感觉","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"已发风格参考图集"},
+    {"id":9,"area":"晾晒区","category":"照明设计","desc":"安装晴空灯，配合自然风格营造户外感","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"前期已沟通"},
+    {"id":10,"area":"主卧卫生间","category":"风格设计","desc":"主卧卫生间风格精致、复古","date":"2026-07","priority":"高","status":"已确认","feedback":"","note":""},
+    {"id":11,"area":"主卧卫生间","category":"地面材质","desc":"马赛克软质地砖，需评估防水性/耐久性/日常打理/漏水风险","date":"2026-07","priority":"高","status":"待确认","feedback":"","note":"业主对该材质不了解，需设计师专业建议"},
+    {"id":12,"area":"主卧卫生间","category":"空间设计","desc":"洗手台+衣帽间区域避免'衣帽间在厕所里'的视觉感受","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":"需在效果图中验证，影响不大也可接受"},
+    {"id":13,"area":"主卧卫生间","category":"软装设计","desc":"男生洗手池（淋浴房门口）造型和软装配件走复古风格","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":"需与整体复古风格统一"},
+    {"id":14,"area":"主卧卫生间","category":"效果图","desc":"主卧卫生间需出效果图","date":"2026-07","priority":"高","status":"待出图","feedback":"","note":""},
+    {"id":15,"area":"客餐厅","category":"地面材质","desc":"地板用木纹砖人字拼铺贴，需确认是否有案例参考","date":"2026-07","priority":"高","status":"待确认","feedback":"","note":"已倾向此方案，需刘工提供案例"},
+    {"id":16,"area":"全屋","category":"门窗信息","desc":"需要各门窗的具体尺寸数据，用于对接门窗厂家","date":"2026-07","priority":"高","status":"待提供","feedback":"","note":"需刘工提供尺寸清单"},
+    {"id":17,"area":"客餐厅","category":"效果图修改","desc":"客厅窗户上下格子未对齐，需修改对齐，整体比例调为瘦长型","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":""},
+    {"id":18,"area":"客餐厅","category":"效果图修改","desc":"客厅窗景做成阳台门关闭状态，展示门窗整体效果","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":""},
+    {"id":19,"area":"客餐厅","category":"效果图修改","desc":"窗外风景改为二楼树景（当前版本与真实场景差异大）","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":"注重真实还原"},
+    {"id":20,"area":"走廊/书房","category":"储物柜设计","desc":"储物柜只在书房一侧做对开门，取消厕所门侧的门（恢复之前讨论方案）","date":"2026-07","priority":"高","status":"需修改","feedback":"","note":"效果图与前期讨论不一致，需纠正"},
+    {"id":21,"area":"走廊","category":"效果图","desc":"客餐厅吊顶方案确认后，走廊区域需出效果图","date":"2026-07","priority":"中","status":"待出图","feedback":"","note":"依赖吊顶方案确认"},
+    {"id":22,"area":"阳台","category":"地面材质","desc":"阳台地砖方案需设计","date":"2026-07","priority":"中","status":"待设计","feedback":"","note":""},
+    {"id":23,"area":"阳台","category":"软装设计","desc":"效果图中的铁树更换为柠檬树","date":"2026-07","priority":"低","status":"需修改","feedback":"","note":""},
+    {"id":24,"area":"阳台","category":"效果图","desc":"阳台开门后的效果图需设计，重点呈现景观视野","date":"2026-07","priority":"中","status":"待出图","feedback":"","note":"林干特别强调对风景很在意"}
+  ],
+  logs: [
+    {"date":"2026-07（前期）","method":"微信群","reqIds":"1,4,5,8,9","summary":"确定客厅卫生间不做隔断、门开淋浴间侧、不用玻璃门、自然风格、晴空灯","reply":"已确认"},
+    {"date":"2026-07","method":"微信群","reqIds":"2,3,6,7","summary":"提出双开门、马桶前封墙/隔断、百叶门、淋浴区下沉方案","reply":"待刘工评估"},
+    {"date":"2026-07","method":"微信群","reqIds":"10-14","summary":"提出主卧卫生间复古风格、马赛克地砖、衣帽间区域、洗手池软装需求","reply":"待出效果图"},
+    {"date":"2026-07","method":"微信群","reqIds":"15-21","summary":"提出木纹砖人字拼、门窗尺寸、窗户修改、阳台门效果图、储物柜修改、走廊效果图","reply":"待修改"},
+    {"date":"2026-07","method":"微信群","reqIds":"22-24","summary":"提出阳台地砖、铁树换柠檬树、阳台开门效果图","reply":"待设计/修改"}
+  ]
+};
+
+// ========== MERGE LOGIC ==========
+function getData() {
+  const savedVersion = localStorage.getItem('dataVersion');
+  const userEdits = JSON.parse(localStorage.getItem('userEdits') || '{}');
+  
+  // If base data is newer, merge user edits over new base
+  if (savedVersion !== BASE_DATA.version) {
+    // New version detected - merge user edits
+    const merged = {};
+    BASE_DATA.requirements.forEach(r => {
+      const userEdit = userEdits[r.id];
+      if (userEdit && userEdit.status === r.status && userEdit.priority === r.priority) {
+        // No conflict, user hasn't changed from base - use base
+        merged[r.id] = {};
+      } else if (userEdit) {
+        // User has made edits - preserve them
+        merged[r.id] = userEdit;
+      } else {
+        // No user edit - use base
+        merged[r.id] = {};
+      }
+    });
+    localStorage.setItem('userEdits', JSON.stringify(merged));
+    localStorage.setItem('dataVersion', BASE_DATA.version);
+    localStorage.setItem('baseDataCache', JSON.stringify(BASE_DATA));
+    return applyEdits(BASE_DATA, merged);
+  }
+  
+  // Same version - just apply user edits
+  return applyEdits(BASE_DATA, userEdits);
+}
+
+function applyEdits(base, edits) {
+  const reqs = base.requirements.map(r => {
+    const edit = edits[r.id] || {};
+    return {
+      ...r,
+      status: edit.status || r.status,
+      priority: edit.priority || r.priority,
+      feedback: edit.feedback !== undefined ? edit.feedback : r.feedback,
+      note: edit.note !== undefined ? edit.note : r.note
+    };
+  });
+  return { ...base, requirements: reqs };
+}
+
+function saveEditLocal(id, field, value) {
+  const edits = JSON.parse(localStorage.getItem('userEdits') || '{}');
+  if (!edits[id]) edits[id] = {};
+  edits[id][field] = value;
+  localStorage.setItem('userEdits', JSON.stringify(edits));
+}
+
+// ========== STATUS HELPERS ==========
+function statusBadgeClass(status) {
+  if (status === '需修改') return 'need-fix';
+  if (['待确认','待评估'].includes(status)) return 'pending-confirm';
+  if (['待出图','待设计','待提供'].includes(status)) return 'pending-output';
+  if (['已确认','已完成'].includes(status)) return 'done';
+  return 'pending-confirm';
+}
+function priorityBadgeClass(priority) {
+  if (priority === '高') return 'priority-high';
+  if (priority === '中') return 'priority-mid';
+  return 'priority-low';
+}
+function isPending(status) {
+  return ['需修改','待确认','待评估','待出图','待设计','待提供'].includes(status);
+}
+
+// ========== RENDER DASHBOARD ==========
+function renderDashboard() {
+  const data = getData();
+  const reqs = data.requirements;
+  const total = reqs.length;
+  const needFix = reqs.filter(r => r.status === '需修改').length;
+  const pendingConfirm = reqs.filter(r => ['待确认','待评估'].includes(r.status)).length;
+  const pendingOutput = reqs.filter(r => ['待出图','待设计','待提供'].includes(r.status)).length;
+  const done = reqs.filter(r => ['已确认','已完成'].includes(r.status)).length;
+
+  // KPI
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card"><div class="label">需求总数</div><div class="value" style="color:var(--primary)">${total}</div></div>
+    <div class="kpi-card danger"><div class="label">需修改</div><div class="value">${needFix}</div></div>
+    <div class="kpi-card warning"><div class="label">待确认/评估</div><div class="value">${pendingConfirm}</div></div>
+    <div class="kpi-card warning"><div class="label">待出图/设计</div><div class="value">${pendingOutput}</div></div>
+    <div class="kpi-card success"><div class="label">已确认/完成</div><div class="value">${done}</div></div>
+    <div class="kpi-card"><div class="label">更新日期</div><div class="value" style="font-size:16px;color:var(--text-secondary)">${data.lastUpdate}</div></div>
+  `;
+
+  // By Area
+  const areas = [...new Set(reqs.map(r => r.area))].sort();
+  let areaHTML = '<h3>按区域统计</h3>';
+  areas.forEach(area => {
+    const areaReqs = reqs.filter(r => r.area === area);
+    const aNeedFix = areaReqs.filter(r => r.status === '需修改').length;
+    const aPending = areaReqs.filter(r => ['待确认','待评估','待出图','待设计','待提供'].includes(r.status)).length;
+    const aDone = areaReqs.filter(r => ['已确认','已完成'].includes(r.status)).length;
+    const barTotal = areaReqs.length;
+    const bar = `
+      <div style="width:${(aNeedFix/barTotal*100)}%;background:var(--danger)"></div>
+      <div style="width:${(aPending/barTotal*100)}%;background:var(--warning)"></div>
+      <div style="width:${(aDone/barTotal*100)}%;background:var(--success)"></div>
+    `;
+    areaHTML += `
+      <div class="stats-row">
+        <span style="min-width:80px">${area}</span>
+        <div class="stats-bar">${bar}</div>
+        <span style="min-width:24px;text-align:right">${areaReqs.length}</span>
+      </div>`;
+  });
+  document.getElementById('areaStats').innerHTML = areaHTML;
+
+  // By Priority
+  const priorities = ['高','中','低'];
+  let prioHTML = '<h3>按优先级统计</h3>';
+  priorities.forEach(p => {
+    const pReqs = reqs.filter(r => r.priority === p);
+    const pPending = pReqs.filter(r => isPending(r.status)).length;
+    prioHTML += `
+      <div class="stats-row">
+        <span class="badge ${priorityBadgeClass(p)}">${p}优先级</span>
+        <span style="margin-left:auto">共 ${pReqs.length} 项，待处理 ${pPending} 项</span>
+      </div>`;
+  });
+  document.getElementById('priorityStats').innerHTML = prioHTML;
+}
+
+// ========== RENDER LIST ==========
+let currentFilter = 'all';
+function renderFilterBar() {
+  const data = getData();
+  const areas = [...new Set(data.requirements.map(r => r.area))].sort();
+  const filters = ['all', 'pending', ...areas];
+  const labels = { 'all': '全部', 'pending': '待处理' };
+  
+  document.getElementById('filterBar').innerHTML = filters.map(f => 
+    `<div class="chip ${currentFilter === f ? 'active' : ''}" onclick="setFilter('${f}')">${labels[f] || f}</div>`
+  ).join('');
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  renderFilterBar();
+  renderList();
+}
+
+function renderList() {
+  const data = getData();
+  let reqs = data.requirements;
+  
+  if (currentFilter === 'pending') {
+    reqs = reqs.filter(r => isPending(r.status));
+  } else if (currentFilter !== 'all') {
+    reqs = reqs.filter(r => r.area === currentFilter);
+  }
+  
+  if (reqs.length === 0) {
+    document.getElementById('reqList').innerHTML = '<div class="empty-state">暂无需求</div>';
+    return;
+  }
+  
+  // Sort: pending first, then by priority
+  const prioOrder = { '高': 0, '中': 1, '低': 2 };
+  reqs.sort((a, b) => {
+    const aPending = isPending(a.status) ? 0 : 1;
+    const bPending = isPending(b.status) ? 0 : 1;
+    if (aPending !== bPending) return aPending - bPending;
+    return prioOrder[a.priority] - prioOrder[b.priority];
+  });
+  
+  document.getElementById('reqList').innerHTML = reqs.map(r => `
+    <div class="req-card" data-status="${r.status}">
+      <div class="req-header">
+        <div class="req-title">
+          <span class="req-id">#${r.id}</span>
+          <span class="req-area">${r.area}</span>
+        </div>
+        <span class="badge ${priorityBadgeClass(r.priority)}">${r.priority}</span>
+      </div>
+      <div class="req-desc">${r.desc}</div>
+      <div class="req-footer">
+        <span class="badge ${statusBadgeClass(r.status)}">${r.status}</span>
+        <span style="font-size:12px;color:var(--text-secondary)">${r.category}</span>
+        <span class="spacer"></span>
+        <button class="edit-btn" onclick="openEdit(${r.id})">编辑</button>
+      </div>
+      ${r.feedback ? `<div style="margin-top:8px;font-size:13px;color:var(--text-secondary);padding-top:8px;border-top:1px dashed var(--border)"><strong>反馈：</strong>${r.feedback}</div>` : ''}
+      ${r.note ? `<div style="margin-top:4px;font-size:12px;color:var(--text-secondary)"><strong>备注：</strong>${r.note}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ========== RENDER LOG ==========
+function renderLog() {
+  const data = getData();
+  if (data.logs.length === 0) {
+    document.getElementById('logList').innerHTML = '<div class="empty-state">暂无记录</div>';
+    return;
+  }
+  document.getElementById('logList').innerHTML = data.logs.map(l => `
+    <div class="log-entry">
+      <div class="log-date">${l.date} · ${l.method}</div>
+      <div class="log-content">${l.summary}</div>
+      ${l.reply ? `<div class="log-reply"><strong>回复：</strong>${l.reply}</div>` : ''}
+      <div class="log-reply" style="border:none;padding-top:4px">涉及需求：${l.reqIds}</div>
+    </div>
+  `).join('');
+}
+
+// ========== EDIT ==========
+function openEdit(id) {
+  const data = getData();
+  const req = data.requirements.find(r => r.id === id);
+  if (!req) return;
+  document.getElementById('editId').value = id;
+  document.getElementById('editStatus').value = req.status;
+  document.getElementById('editPriority').value = req.priority;
+  document.getElementById('editFeedback').value = req.feedback || '';
+  document.getElementById('editNote').value = req.note || '';
+  document.getElementById('editOverlay').classList.add('show');
+}
+
+function closeEdit() {
+  document.getElementById('editOverlay').classList.remove('show');
+}
+
+function saveEdit() {
+  const id = parseInt(document.getElementById('editId').value);
+  saveEditLocal(id, 'status', document.getElementById('editStatus').value);
+  saveEditLocal(id, 'priority', document.getElementById('editPriority').value);
+  saveEditLocal(id, 'feedback', document.getElementById('editFeedback').value);
+  saveEditLocal(id, 'note', document.getElementById('editNote').value);
+  closeEdit();
+  renderAll();
+  showToast('已保存');
+}
+
+// ========== URGE ==========
+function openUrge() {
+  const data = getData();
+  const pending = data.requirements.filter(r => isPending(r.status));
+  
+  if (pending.length === 0) {
+    showToast('没有需要催办的需求');
+    return;
+  }
+  
+  // Sort by priority
+  const prioOrder = { '高': 0, '中': 1, '低': 2 };
+  pending.sort((a, b) => prioOrder[a.priority] - prioOrder[b.priority]);
+  
+  document.getElementById('urgeList').innerHTML = pending.map(r => `
+    <div class="urge-item">
+      <input type="checkbox" checked value="${r.id}" id="urge-${r.id}">
+      <div class="item-text">
+        <span class="item-id">#${r.id}</span>
+        <span class="badge ${priorityBadgeClass(r.priority)}" style="font-size:11px;margin-right:4px">${r.priority}</span>
+        <span class="badge ${statusBadgeClass(r.status)}" style="font-size:11px">${r.status}</span>
+        <div style="margin-top:2px">${r.desc}</div>
+      </div>
+    </div>
+  `).join('');
+  
+  document.getElementById('urgeText').style.display = 'none';
+  document.getElementById('btnCopy').style.display = 'none';
+  document.getElementById('btnGenerate').style.display = 'block';
+  document.getElementById('urgeOverlay').classList.add('show');
+}
+
+function closeUrge() {
+  document.getElementById('urgeOverlay').classList.remove('show');
+}
+
+function generateUrgeText() {
+  const checked = document.querySelectorAll('.urge-item input[type="checkbox"]:checked');
+  const data = getData();
+  const ids = Array.from(checked).map(c => parseInt(c.value));
+  const selected = data.requirements.filter(r => ids.includes(r.id));
+  
+  if (selected.length === 0) {
+    showToast('请至少选择一项');
+    return;
+  }
+  
+  // Group by priority
+  const high = selected.filter(r => r.priority === '高');
+  const mid = selected.filter(r => r.priority === '中');
+  const low = selected.filter(r => r.priority === '低');
+  
+  let text = `刘工您好，目前有 ${selected.length} 项需求还在等待处理，想跟您同步一下进度：\n`;
+  
+  if (high.length > 0) {
+    text += `\n【高优先级 · ${high.length}项】\n`;
+    high.forEach(r => {
+      text += `${r.id}. ${r.area} - ${r.desc.substring(0, 40)}${r.desc.length > 40 ? '...' : ''}（${r.status}）\n`;
+    });
+  }
+  
+  if (mid.length > 0) {
+    text += `\n【中优先级 · ${mid.length}项】\n`;
+    mid.forEach(r => {
+      text += `${r.id}. ${r.area} - ${r.desc.substring(0, 40)}${r.desc.length > 40 ? '...' : ''}（${r.status}）\n`;
+    });
+  }
+  
+  if (low.length > 0) {
+    text += `\n【低优先级 · ${low.length}项】\n`;
+    low.forEach(r => {
+      text += `${r.id}. ${r.area} - ${r.desc.substring(0, 40)}${r.desc.length > 40 ? '...' : ''}（${r.status}）\n`;
+    });
+  }
+  
+  text += `\n方便的时候麻烦帮忙推进一下，辛苦了～ 🙏`;
+  
+  document.getElementById('urgeText').textContent = text;
+  document.getElementById('urgeText').style.display = 'block';
+  document.getElementById('btnGenerate').style.display = 'none';
+  document.getElementById('btnCopy').style.display = 'block';
+}
+
+function copyUrgeText() {
+  const text = document.getElementById('urgeText').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('已复制，去微信群粘贴吧');
+    }).catch(() => {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('已复制，去微信群粘贴吧');
+  } catch (e) {
+    showToast('复制失败，请手动选择文字复制');
+  }
+  document.body.removeChild(ta);
+}
+
+// ========== TABS ==========
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('page-' + tab.dataset.page).classList.add('active');
+  });
+});
+
+// ========== TOAST ==========
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ========== RENDER ALL ==========
+function renderAll() {
+  renderDashboard();
+  renderFilterBar();
+  renderList();
+  renderLog();
+}
+
+// ========== INIT ==========
+renderAll();
+
+// PWA: Check for updates
+if ('serviceWorker' in navigator) {
+  // Service worker would go here for full offline support
+}
+</script>
+</body>
+</html>
