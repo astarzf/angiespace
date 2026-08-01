@@ -105,11 +105,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 .group-header {
   display: flex; align-items: center; gap: 8px;
   padding: 12px 4px 8px; font-size: 14px; font-weight: 700; color: var(--primary);
+  cursor: pointer; user-select: none;
 }
 .group-header .group-count {
   font-size: 12px; font-weight: 400; color: var(--text-secondary);
   background: #F3F4F6; padding: 2px 8px; border-radius: 10px;
 }
+.group-header .collapse-arrow {
+  margin-left: auto; font-size: 12px; color: var(--text-secondary); transition: transform 0.2s;
+}
+.group-header.collapsed .collapse-arrow { transform: rotate(-90deg); }
+.group-content { transition: max-height 0.3s ease; overflow: hidden; }
+.group-content.collapsed { display: none; }
+
+/* List controls bar */
+.list-controls {
+  display: flex; align-items: center; gap: 8px; padding: 8px 0 4px;
+}
+.list-controls .filter-bar { flex: 1; padding: 0; }
+.collapse-btn {
+  white-space: nowrap; padding: 6px 12px; border-radius: 20px;
+  font-size: 13px; font-weight: 600; background: #F3F4F6; color: var(--primary);
+  cursor: pointer; border: 1px solid var(--border);
+}
+.collapse-btn:active { background: #E5E7EB; }
 .chip {
   padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
   background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary);
@@ -291,6 +310,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
     <div class="subtab" data-subview="status" onclick="switchSubView('status')">按状态</div>
     <div class="subtab" data-subview="priority" onclick="switchSubView('priority')">按优先级</div>
   </div>
+  <div class="list-controls">
+    <div class="filter-bar">
+      <div class="chip active" data-filter="all" onclick="setListFilter('all')">全部</div>
+      <div class="chip" data-filter="pending" onclick="setListFilter('pending')">待处理</div>
+    </div>
+    <div class="collapse-btn" onclick="toggleAllGroups(this)" data-collapsed="false">全部收起</div>
+  </div>
   <div id="reqListArea"></div>
   <div id="reqListStatus" style="display:none;"></div>
   <div id="reqListPriority" style="display:none;"></div>
@@ -382,7 +408,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 <script>
 // ========== BASE DATA (managed by AI updates) ==========
 const BASE_DATA = {
-  version: "2026-08-02-v4",
+  version: "2026-08-02-v5",
   lastUpdate: "2026-08-01",
   requirements: [
     {"id":1,"area":"客厅卫生间","category":"隔断设计","desc":"马桶与淋浴间不做隔断，延续之前讨论的方案","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"与刘工前期沟通确认"},
@@ -561,6 +587,7 @@ function renderDashboard() {
 
 // ========== RENDER LIST ==========
 let currentSubView = 'area';
+let currentListFilter = 'all';
 
 function switchSubView(view) {
   currentSubView = view;
@@ -569,6 +596,38 @@ function switchSubView(view) {
   document.getElementById('reqListArea').style.display = view === 'area' ? 'block' : 'none';
   document.getElementById('reqListStatus').style.display = view === 'status' ? 'block' : 'none';
   document.getElementById('reqListPriority').style.display = view === 'priority' ? 'block' : 'none';
+}
+
+function setListFilter(filter) {
+  currentListFilter = filter;
+  document.querySelectorAll('.list-controls .chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.filter === filter);
+  });
+  renderList();
+}
+
+function toggleGroup(headerEl) {
+  const content = headerEl.nextElementSibling;
+  headerEl.classList.toggle('collapsed');
+  content.classList.toggle('collapsed');
+}
+
+function toggleAllGroups(btn) {
+  const container = document.getElementById(currentSubView === 'area' ? 'reqListArea' : currentSubView === 'status' ? 'reqListStatus' : 'reqListPriority');
+  const headers = container.querySelectorAll('.group-header');
+  const contents = container.querySelectorAll('.group-content');
+  const isCollapsed = btn.dataset.collapsed === 'true';
+  if (isCollapsed) {
+    headers.forEach(h => h.classList.remove('collapsed'));
+    contents.forEach(c => c.classList.remove('collapsed'));
+    btn.dataset.collapsed = 'false';
+    btn.textContent = '全部收起';
+  } else {
+    headers.forEach(h => h.classList.add('collapsed'));
+    contents.forEach(c => c.classList.add('collapsed'));
+    btn.dataset.collapsed = 'true';
+    btn.textContent = '全部展开';
+  }
 }
 
 function reqCardHTML(r) {
@@ -593,9 +652,18 @@ function reqCardHTML(r) {
     </div>`;
 }
 
+function groupHTML(title, badgeHTML, reqs, sortFn) {
+  const sorted = reqs.sort(sortFn);
+  return `<div class="group-header" onclick="toggleGroup(this)">${badgeHTML || title}<span class="group-count">${sorted.length}项</span><span class="collapse-arrow">▼</span></div>
+    <div class="group-content">${sorted.map(reqCardHTML).join('')}</div>`;
+}
+
 function renderList() {
   const data = getData();
-  const reqs = data.requirements;
+  let reqs = data.requirements;
+  if (currentListFilter === 'pending') {
+    reqs = reqs.filter(r => isPending(r.status));
+  }
   const prioOrder = { '高': 0, '中': 1, '低': 2 };
   const sortFn = (a, b) => {
     const aP = isPending(a.status) ? 0 : 1;
@@ -606,13 +674,10 @@ function renderList() {
 
   // --- By Area ---
   const areas = [...new Set(reqs.map(r => r.area))].sort();
-  let areaHTML = '';
-  areas.forEach(area => {
-    const areaReqs = reqs.filter(r => r.area === area).sort(sortFn);
-    areaHTML += `<div class="group-header">${area}<span class="group-count">${areaReqs.length}项</span></div>`;
-    areaHTML += areaReqs.map(reqCardHTML).join('');
-  });
-  document.getElementById('reqListArea').innerHTML = areaHTML;
+  document.getElementById('reqListArea').innerHTML = areas.map(area => {
+    const areaReqs = reqs.filter(r => r.area === area);
+    return groupHTML(area, null, areaReqs, sortFn);
+  }).join('');
 
   // --- By Status ---
   const statusGroups = [
@@ -626,27 +691,23 @@ function renderList() {
     { name: '已完成', badgeClass: 'done' },
     { name: '已搁置', badgeClass: 'pending-confirm' },
   ];
-  let statusHTML = '';
-  statusGroups.forEach(sg => {
-    const sReqs = reqs.filter(r => r.status === sg.name).sort(sortFn);
-    if (sReqs.length > 0) {
-      statusHTML += `<div class="group-header"><span class="badge ${sg.badgeClass}">${sg.name}</span><span class="group-count">${sReqs.length}项</span></div>`;
-      statusHTML += sReqs.map(reqCardHTML).join('');
-    }
-  });
-  document.getElementById('reqListStatus').innerHTML = statusHTML;
+  document.getElementById('reqListStatus').innerHTML = statusGroups.map(sg => {
+    const sReqs = reqs.filter(r => r.status === sg.name);
+    if (sReqs.length === 0) return '';
+    return groupHTML(sg.name, `<span class="badge ${sg.badgeClass}">${sg.name}</span>`, sReqs, sortFn);
+  }).join('');
 
   // --- By Priority ---
   const priorities = ['高','中','低'];
-  let prioHTML = '';
-  priorities.forEach(p => {
-    const pReqs = reqs.filter(r => r.priority === p).sort(sortFn);
-    if (pReqs.length > 0) {
-      prioHTML += `<div class="group-header"><span class="badge ${priorityBadgeClass(p)}">${p}优先级</span><span class="group-count">${pReqs.length}项</span></div>`;
-      prioHTML += pReqs.map(reqCardHTML).join('');
-    }
-  });
-  document.getElementById('reqListPriority').innerHTML = prioHTML;
+  document.getElementById('reqListPriority').innerHTML = priorities.map(p => {
+    const pReqs = reqs.filter(r => r.priority === p);
+    if (pReqs.length === 0) return '';
+    return groupHTML(p, `<span class="badge ${priorityBadgeClass(p)}">${p}优先级</span>`, pReqs, sortFn);
+  }).join('');
+
+  // Reset collapse button state
+  const btn = document.querySelector('.collapse-btn');
+  if (btn) { btn.dataset.collapsed = 'false'; btn.textContent = '全部收起'; }
 }
 
 // ========== RENDER LOG ==========
