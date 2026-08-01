@@ -63,7 +63,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 .kpi-card {
   background: var(--card-bg); border-radius: 12px; padding: 16px;
   text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
 }
+.kpi-card:active { transform: scale(0.95); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
 .kpi-card .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
 .kpi-card .value { font-size: 28px; font-weight: 700; }
 .kpi-card.danger .value { color: var(--danger); }
@@ -354,7 +356,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 <script>
 // ========== BASE DATA (managed by AI updates) ==========
 const BASE_DATA = {
-  version: "2026-08-01-v2",
+  version: "2026-08-02-v3",
   lastUpdate: "2026-08-01",
   requirements: [
     {"id":1,"area":"客厅卫生间","category":"隔断设计","desc":"马桶与淋浴间不做隔断，延续之前讨论的方案","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"与刘工前期沟通确认"},
@@ -474,11 +476,11 @@ function renderDashboard() {
 
   // KPI
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi-card"><div class="label">需求总数</div><div class="value" style="color:var(--primary)">${total}</div></div>
-    <div class="kpi-card danger"><div class="label">需修改</div><div class="value">${needFix}</div></div>
-    <div class="kpi-card warning"><div class="label">待确认/评估</div><div class="value">${pendingConfirm}</div></div>
-    <div class="kpi-card warning"><div class="label">待出图/设计</div><div class="value">${pendingOutput}</div></div>
-    <div class="kpi-card success"><div class="label">已确认/完成</div><div class="value">${done}</div></div>
+    <div class="kpi-card" onclick="filterByStatus('all')"><div class="label">需求总数</div><div class="value" style="color:var(--primary)">${total}</div></div>
+    <div class="kpi-card danger" onclick="filterByStatus('需修改')"><div class="label">需修改</div><div class="value">${needFix}</div></div>
+    <div class="kpi-card warning" onclick="filterByStatus('待确认/评估')"><div class="label">待确认/评估</div><div class="value">${pendingConfirm}</div></div>
+    <div class="kpi-card warning" onclick="filterByStatus('待出图/设计')"><div class="label">待出图/设计</div><div class="value">${pendingOutput}</div></div>
+    <div class="kpi-card success" onclick="filterByStatus('已确认/完成')"><div class="label">已确认/完成</div><div class="value">${done}</div></div>
     <div class="kpi-card"><div class="label">更新日期</div><div class="value" style="font-size:16px;color:var(--text-secondary)">${data.lastUpdate}</div></div>
   `;
 
@@ -566,7 +568,14 @@ function renderFilterBar() {
   const filters = ['all', 'pending', ...areas];
   const labels = { 'all': '全部', 'pending': '待处理' };
   
-  document.getElementById('filterBar').innerHTML = filters.map(f => 
+  // Add status filter chip if active
+  let statusChip = '';
+  if (currentFilter.startsWith('status:')) {
+    const statusKey = currentFilter.split(':')[1];
+    statusChip = `<div class="chip active">${statusKey}（点击全部清除）</div>`;
+  }
+  
+  document.getElementById('filterBar').innerHTML = statusChip + filters.map(f => 
     `<div class="chip ${currentFilter === f ? 'active' : ''}" onclick="setFilter('${f}')">${labels[f] || f}</div>`
   ).join('');
 }
@@ -577,11 +586,38 @@ function setFilter(f) {
   renderList();
 }
 
+function filterByStatus(statusKey) {
+  // Switch to list page
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab[data-page="list"]').classList.add('active');
+  document.getElementById('page-list').classList.add('active');
+  
+  // Set filter to the status group
+  currentFilter = 'status:' + statusKey;
+  renderFilterBar();
+  renderList();
+}
+
 function renderList() {
   const data = getData();
   let reqs = data.requirements;
   
-  if (currentFilter === 'pending') {
+  // Status group filter (from KPI click)
+  if (currentFilter.startsWith('status:')) {
+    const statusKey = currentFilter.split(':')[1];
+    if (statusKey === 'all') {
+      // no filter
+    } else if (statusKey === '需修改') {
+      reqs = reqs.filter(r => r.status === '需修改');
+    } else if (statusKey === '待确认/评估') {
+      reqs = reqs.filter(r => ['待确认','待评估'].includes(r.status));
+    } else if (statusKey === '待出图/设计') {
+      reqs = reqs.filter(r => ['待出图','待设计','待提供'].includes(r.status));
+    } else if (statusKey === '已确认/完成') {
+      reqs = reqs.filter(r => ['已确认','已完成'].includes(r.status));
+    }
+  } else if (currentFilter === 'pending') {
     reqs = reqs.filter(r => isPending(r.status));
   } else if (currentFilter !== 'all') {
     reqs = reqs.filter(r => r.area === currentFilter);
