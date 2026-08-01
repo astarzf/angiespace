@@ -146,7 +146,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 .edit-panel h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--primary); }
 .edit-group { margin-bottom: 16px; }
 .edit-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
-.edit-group select, .edit-group textarea {
+.edit-group select, .edit-group textarea, .edit-group input[type="text"] {
   width: 100%; padding: 10px 12px; border: 1px solid var(--border);
   border-radius: 8px; font-size: 15px; font-family: inherit; background: #F9FAFB;
 }
@@ -182,6 +182,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 .urge-item input[type="checkbox"] { margin-top: 3px; width: 18px; height: 18px; }
 .urge-item .item-text { flex: 1; line-height: 1.4; }
 .urge-item .item-id { font-weight: 700; color: var(--text-secondary); margin-right: 4px; }
+.urge-select-all {
+  display: flex; align-items: center; gap: 8px; padding: 10px 0;
+  border-bottom: 2px solid var(--border); font-size: 14px; font-weight: 600;
+}
+.urge-select-all input[type="checkbox"] { width: 18px; height: 18px; }
+.urge-select-all .urge-count { margin-left: auto; color: var(--text-secondary); font-weight: 400; font-size: 13px; }
 
 .urge-text-box {
   background: #F9FAFB; border: 1px solid var(--border); border-radius: 12px;
@@ -246,6 +252,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
   <div class="kpi-grid" id="kpiGrid"></div>
   <div class="stats-section" id="areaStats"></div>
   <div class="stats-section" id="priorityStats"></div>
+  <div class="stats-section" id="statusStats"></div>
   <div class="stats-section" id="statusLegend">
     <h3>状态说明</h3>
     <div class="stats-row"><span class="badge need-fix">需修改</span><span style="margin-left:auto">设计师需修改的方案</span></div>
@@ -271,6 +278,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
   <div class="edit-panel">
     <h3>编辑需求</h3>
     <input type="hidden" id="editId">
+    <div class="edit-group">
+      <label>区域</label>
+      <input type="text" id="editArea" list="areaList" placeholder="输入或选择区域">
+      <datalist id="areaList">
+        <option value="客厅卫生间">
+        <option value="主卧卫生间">
+        <option value="客餐厅">
+        <option value="走廊">
+        <option value="走廊/书房">
+        <option value="阳台">
+        <option value="晾晒区">
+        <option value="全屋">
+      </datalist>
+    </div>
     <div class="edit-group">
       <label>当前状态</label>
       <select id="editStatus">
@@ -313,6 +334,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
   <div class="urge-panel">
     <h3>催办设计师</h3>
     <div class="urge-sub">勾选需要催办的需求，一键生成催办文案</div>
+    <div class="urge-select-all">
+      <input type="checkbox" id="urgeSelectAll" onchange="toggleAllUrge(this.checked)">
+      <label for="urgeSelectAll">全选 / 全不选</label>
+      <span class="urge-count" id="urgeCount"></span>
+    </div>
     <div class="urge-list" id="urgeList"></div>
     <div class="urge-text-box" id="urgeText" style="display:none;"></div>
     <button class="btn-copy" id="btnGenerate" onclick="generateUrgeText()">生成催办文案</button>
@@ -328,7 +354,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 <script>
 // ========== BASE DATA (managed by AI updates) ==========
 const BASE_DATA = {
-  version: "2026-08-01",
+  version: "2026-08-01-v2",
   lastUpdate: "2026-08-01",
   requirements: [
     {"id":1,"area":"客厅卫生间","category":"隔断设计","desc":"马桶与淋浴间不做隔断，延续之前讨论的方案","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"与刘工前期沟通确认"},
@@ -402,6 +428,7 @@ function applyEdits(base, edits) {
     const edit = edits[r.id] || {};
     return {
       ...r,
+      area: edit.area || r.area,
       status: edit.status || r.status,
       priority: edit.priority || r.priority,
       feedback: edit.feedback !== undefined ? edit.feedback : r.feedback,
@@ -478,19 +505,57 @@ function renderDashboard() {
   });
   document.getElementById('areaStats').innerHTML = areaHTML;
 
-  // By Priority
+  // By Priority (with progress bars)
   const priorities = ['高','中','低'];
   let prioHTML = '<h3>按优先级统计</h3>';
   priorities.forEach(p => {
     const pReqs = reqs.filter(r => r.priority === p);
-    const pPending = pReqs.filter(r => isPending(r.status)).length;
-    prioHTML += `
+    const pNeedFix = pReqs.filter(r => r.status === '需修改').length;
+    const pPending = pReqs.filter(r => ['待确认','待评估','待出图','待设计','待提供'].includes(r.status)).length;
+    const pDone = pReqs.filter(r => ['已确认','已完成'].includes(r.status)).length;
+    const barTotal = pReqs.length;
+    if (barTotal > 0) {
+      const bar = `
+        <div style="width:${(pNeedFix/barTotal*100)}%;background:var(--danger)"></div>
+        <div style="width:${(pPending/barTotal*100)}%;background:var(--warning)"></div>
+        <div style="width:${(pDone/barTotal*100)}%;background:var(--success)"></div>
+      `;
+      prioHTML += `
       <div class="stats-row">
-        <span class="badge ${priorityBadgeClass(p)}">${p}优先级</span>
-        <span style="margin-left:auto">共 ${pReqs.length} 项，待处理 ${pPending} 项</span>
+        <span class="badge ${priorityBadgeClass(p)}" style="min-width:56px;text-align:center">${p}</span>
+        <div class="stats-bar">${bar}</div>
+        <span style="min-width:50px;text-align:right">${pReqs.length}项</span>
       </div>`;
+    }
   });
   document.getElementById('priorityStats').innerHTML = prioHTML;
+
+  // By Status (with progress bars)
+  const statusGroups = [
+    { name: '需修改', color: 'var(--danger)', badgeClass: 'need-fix' },
+    { name: '待确认', color: 'var(--warning)', badgeClass: 'pending-confirm' },
+    { name: '待评估', color: 'var(--warning)', badgeClass: 'pending-confirm' },
+    { name: '待出图', color: 'var(--info)', badgeClass: 'pending-output' },
+    { name: '待设计', color: 'var(--info)', badgeClass: 'pending-output' },
+    { name: '待提供', color: 'var(--info)', badgeClass: 'pending-output' },
+    { name: '已确认', color: 'var(--success)', badgeClass: 'done' },
+    { name: '已完成', color: 'var(--success)', badgeClass: 'done' },
+    { name: '已搁置', color: '#9CA3AF', badgeClass: 'pending-confirm' },
+  ];
+  let statusHTML = '<h3>按状态统计</h3>';
+  statusGroups.forEach(sg => {
+    const sReqs = reqs.filter(r => r.status === sg.name);
+    if (sReqs.length > 0) {
+      const pct = (sReqs.length / total * 100).toFixed(0);
+      statusHTML += `
+      <div class="stats-row">
+        <span class="badge ${sg.badgeClass}" style="min-width:56px;text-align:center">${sg.name}</span>
+        <div class="stats-bar"><div style="width:${pct}%;background:${sg.color}"></div></div>
+        <span style="min-width:24px;text-align:right">${sReqs.length}</span>
+      </div>`;
+    }
+  });
+  document.getElementById('statusStats').innerHTML = statusHTML;
 }
 
 // ========== RENDER LIST ==========
@@ -581,6 +646,7 @@ function openEdit(id) {
   const req = data.requirements.find(r => r.id === id);
   if (!req) return;
   document.getElementById('editId').value = id;
+  document.getElementById('editArea').value = req.area;
   document.getElementById('editStatus').value = req.status;
   document.getElementById('editPriority').value = req.priority;
   document.getElementById('editFeedback').value = req.feedback || '';
@@ -594,6 +660,7 @@ function closeEdit() {
 
 function saveEdit() {
   const id = parseInt(document.getElementById('editId').value);
+  saveEditLocal(id, 'area', document.getElementById('editArea').value);
   saveEditLocal(id, 'status', document.getElementById('editStatus').value);
   saveEditLocal(id, 'priority', document.getElementById('editPriority').value);
   saveEditLocal(id, 'feedback', document.getElementById('editFeedback').value);
@@ -619,7 +686,7 @@ function openUrge() {
   
   document.getElementById('urgeList').innerHTML = pending.map(r => `
     <div class="urge-item">
-      <input type="checkbox" checked value="${r.id}" id="urge-${r.id}">
+      <input type="checkbox" checked value="${r.id}" id="urge-${r.id}" onchange="updateUrgeCount()">
       <div class="item-text">
         <span class="item-id">#${r.id}</span>
         <span class="badge ${priorityBadgeClass(r.priority)}" style="font-size:11px;margin-right:4px">${r.priority}</span>
@@ -629,10 +696,26 @@ function openUrge() {
     </div>
   `).join('');
   
+  document.getElementById('urgeSelectAll').checked = true;
+  updateUrgeCount();
   document.getElementById('urgeText').style.display = 'none';
   document.getElementById('btnCopy').style.display = 'none';
   document.getElementById('btnGenerate').style.display = 'block';
   document.getElementById('urgeOverlay').classList.add('show');
+}
+
+function toggleAllUrge(checked) {
+  document.querySelectorAll('.urge-item input[type="checkbox"]').forEach(cb => {
+    cb.checked = checked;
+  });
+  updateUrgeCount();
+}
+
+function updateUrgeCount() {
+  const total = document.querySelectorAll('.urge-item input[type="checkbox"]').length;
+  const checked = document.querySelectorAll('.urge-item input[type="checkbox"]:checked').length;
+  document.getElementById('urgeCount').textContent = `已选 ${checked} / ${total} 项`;
+  document.getElementById('urgeSelectAll').checked = (total > 0 && checked === total);
 }
 
 function closeUrge() {
