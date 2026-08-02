@@ -280,7 +280,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 
 <div class="app-header">
   <h1>美加广场 E203 · 装修追踪</h1>
-  <div class="subtitle">设计师：刘工 &nbsp;|&nbsp; 更新：2026-08-01</div>
+  <div class="subtitle">设计师：刘工 &nbsp;|&nbsp; 更新：2026-08-02</div>
 </div>
 
 <div class="tabs">
@@ -408,8 +408,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 <script>
 // ========== BASE DATA (managed by AI updates) ==========
 const BASE_DATA = {
-  version: "2026-08-02-v5",
-  lastUpdate: "2026-08-01",
+  version: "2026-08-02-v6",
+  lastUpdate: "2026-08-02",
   requirements: [
     {"id":1,"area":"客厅卫生间","category":"隔断设计","desc":"马桶与淋浴间不做隔断，延续之前讨论的方案","date":"2026-07","priority":"中","status":"已确认","feedback":"","note":"与刘工前期沟通确认"},
     {"id":2,"area":"客厅卫生间","category":"门体改造","desc":"客厅餐厅进入洗手间洗衣房的门做双开门，从外面看要美观","date":"2026-07","priority":"高","status":"需修改","feedback":"","note":"设计师需出双开门方案"},
@@ -425,7 +425,7 @@ const BASE_DATA = {
     {"id":12,"area":"主卧卫生间","category":"空间设计","desc":"洗手台+衣帽间区域避免'衣帽间在厕所里'的视觉感受","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":"需在效果图中验证，影响不大也可接受"},
     {"id":13,"area":"主卧卫生间","category":"软装设计","desc":"男生洗手池（淋浴房门口）造型和软装配件走复古风格","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":"需与整体复古风格统一"},
     {"id":14,"area":"主卧卫生间","category":"效果图","desc":"主卧卫生间需出效果图","date":"2026-07","priority":"高","status":"待出图","feedback":"","note":""},
-    {"id":15,"area":"客餐厅","category":"地面材质","desc":"地板用木纹砖人字拼铺贴，需确认是否有案例参考","date":"2026-07","priority":"高","status":"待确认","feedback":"","note":"已倾向此方案，需刘工提供案例"},
+    {"id":15,"area":"客餐厅","category":"地面材质","desc":"地板用木纹砖人字拼铺贴（小砖），已确认用小砖人字拼方案","date":"2026-07","priority":"高","status":"已确认","feedback":"刘工确认有小砖人字拼经验，落地效果可以。大砖接缝处实际是鱼骨不是人字，已决定用小砖人字拼","note":"小砖人工费和美缝较贵，但美观度更好"},
     {"id":16,"area":"全屋","category":"门窗信息","desc":"需要各门窗的具体尺寸数据，用于对接门窗厂家","date":"2026-07","priority":"高","status":"待提供","feedback":"","note":"需刘工提供尺寸清单"},
     {"id":17,"area":"客餐厅","category":"效果图修改","desc":"客厅窗户上下格子未对齐，需修改对齐，整体比例调为瘦长型","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":""},
     {"id":18,"area":"客餐厅","category":"效果图修改","desc":"客厅窗景做成阳台门关闭状态，展示门窗整体效果","date":"2026-07","priority":"中","status":"需修改","feedback":"","note":""},
@@ -434,14 +434,21 @@ const BASE_DATA = {
     {"id":21,"area":"走廊","category":"效果图","desc":"客餐厅吊顶方案确认后，走廊区域需出效果图","date":"2026-07","priority":"中","status":"待出图","feedback":"","note":"依赖吊顶方案确认"},
     {"id":22,"area":"阳台","category":"地面材质","desc":"阳台地砖方案需设计","date":"2026-07","priority":"中","status":"待设计","feedback":"","note":""},
     {"id":23,"area":"阳台","category":"软装设计","desc":"效果图中的铁树更换为柠檬树","date":"2026-07","priority":"低","status":"需修改","feedback":"","note":""},
-    {"id":24,"area":"阳台","category":"效果图","desc":"阳台开门后的效果图需设计，重点呈现景观视野","date":"2026-07","priority":"中","status":"待出图","feedback":"","note":"林干特别强调对风景很在意"}
+    {"id":24,"area":"阳台","category":"效果图","desc":"阳台开门后的效果图需设计，重点呈现景观视野","date":"2026-07","priority":"中","status":"待出图","feedback":"","note":"林干特别强调对风景很在意"},
+    {"id":25,"area":"全屋","category":"网络设备","desc":"全屋WiFi覆盖方案：拟加2个AP，安装高度约2米，位置1客厅窗户左侧墙面（朝阳台），位置2主卧衣帽间镜子上方（朝卫生间）","date":"2026-08","priority":"中","status":"待确认","feedback":"林干提议加多2个AP且高度高一些；讨论了筒灯内/吸顶AP/吊灯内等安装方式；rui表示吊灯内是空的信号不影响，但散热和最终方案待确认","note":"壁挂空调无检修口，已排除该方案"},
+    {"id":26,"area":"全屋","category":"项目管理","desc":"监理确认时间及拆除工程安排","date":"2026-08","priority":"高","status":"待确认","feedback":"","note":"林干询问监理什么时候敲定及拆除事宜"},
+    {"id":27,"area":"厨房","category":"地面材质","desc":"厨房地面用瓷砖，好打理，可从入户通铺","date":"2026-08","priority":"中","status":"已确认","feedback":"rui建议瓷砖从入户通铺至厨房，业主确认厨房用瓷砖","note":"瓷砖好打理，不用考虑卫生问题"},
+    {"id":28,"area":"入户","category":"地面材质","desc":"入户区域与室内分开铺装，视觉上区分开来，营造仪式感和层次感","date":"2026-08","priority":"中","status":"待确认","feedback":"林干和rui都同意分开铺；入户具体材质待定","note":"通铺虽好打理但入户心理上感觉脏，决定分开"}
   ],
   logs: [
     {"date":"2026-07（前期）","method":"微信群","reqIds":"1,4,5,8,9","summary":"确定客厅卫生间不做隔断、门开淋浴间侧、不用玻璃门、自然风格、晴空灯","reply":"已确认"},
     {"date":"2026-07","method":"微信群","reqIds":"2,3,6,7","summary":"提出双开门、马桶前封墙/隔断、百叶门、淋浴区下沉方案","reply":"待刘工评估"},
     {"date":"2026-07","method":"微信群","reqIds":"10-14","summary":"提出主卧卫生间复古风格、马赛克地砖、衣帽间区域、洗手池软装需求","reply":"待出效果图"},
     {"date":"2026-07","method":"微信群","reqIds":"15-21","summary":"提出木纹砖人字拼、门窗尺寸、窗户修改、阳台门效果图、储物柜修改、走廊效果图","reply":"待修改"},
-    {"date":"2026-07","method":"微信群","reqIds":"22-24","summary":"提出阳台地砖、铁树换柠檬树、阳台开门效果图","reply":"待设计/修改"}
+    {"date":"2026-07","method":"微信群","reqIds":"22-24","summary":"提出阳台地砖、铁树换柠檬树、阳台开门效果图","reply":"待设计/修改"},
+    {"date":"2026-08-02","method":"微信群","reqIds":"15","summary":"木纹砖人字拼方案确认：刘工有小砖人字拼经验，落地效果可以；大砖接缝实际是鱼骨不是人字；决定用小砖人字拼","reply":"已确认"},
+    {"date":"2026-08-02","method":"微信群","reqIds":"27,28","summary":"厨房用瓷砖好打理；入户与室内分开铺装，营造仪式感和层次感；入户具体材质待定","reply":"入户分开已确认，材质待定"},
+    {"date":"2026-08-02","method":"微信群","reqIds":"25,26","summary":"全屋WiFi覆盖：拟加2个AP（客厅窗左侧+主卧衣帽间上方），高度约2米；讨论筒灯内/吸顶AP/吊灯内安装方式；吊灯内可行但散热待确认；询问监理确认及拆除时间","reply":"AP安装方式待确认，监理时间待回复"}
   ]
 };
 
